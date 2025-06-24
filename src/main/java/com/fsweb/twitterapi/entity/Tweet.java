@@ -47,7 +47,7 @@ public class Tweet {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    // Self-referencing ManyToOne: Bir tweet başka bir tweete yanıt olabilir.
+    // Self-referencing ManyToOne: Bir tweet başka tweetlere yanıt olabilir.
     // Senaryo: Kullanıcı A bir tweet attı (Tweet a). Kullanıcı B, bu tweete yanıt (reply) verdi (Tweet b).
     @ManyToOne(fetch = FetchType.LAZY) // Bir yanıt tweeti sadece bir orijinal tweete bağlanır.
     @JoinColumn(name = "reply_to_tweet_id") // Yanıt verilen Tweet'in ID'sine referans veren sütun. Nullable olabilir çünkü her tweet bir yanıt değildir.
