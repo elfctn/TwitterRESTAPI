@@ -12,7 +12,8 @@ import java.time.LocalDateTime; // Tarih ve saat tipi için
 import java.util.UUID; // Benzersiz ID (UUID) tipi için
 
 @Entity // Bu sınıfın bir JPA Entity'si olduğunu belirtir.
-@Table(name = "likes", uniqueConstraints = {@UniqueConstraint(columnNames = {"user_id", "tweet_id"})}) // Veritabanındaki tablo adını "likes" olarak belirler.
+@Table(name = "likes", uniqueConstraints = {@UniqueConstraint(columnNames = {"user_id", "tweet_id"})})
+// Veritabanındaki tablo adını "likes" olarak belirler.
 // ***YENİ EKLEDİĞİM KISIM: uniqueConstraints***
 // user_id ve tweet_id sütunlarının birleşimi benzersiz olmalıdır.
 // Bu, bir kullanıcının aynı tweete birden fazla kez beğeni atmasını engeller.
@@ -28,11 +29,11 @@ public class Like {
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id; // Beğeni için benzersiz ana ID.
 
-    @ManyToOne(fetch = FetchType.LAZY) // Bir beğeninin sadece bir kullanıcısı vardır.
+    @ManyToOne(fetch = FetchType.LAZY) // Bir kullanıcı bir sürü beğeni yapabilir
     @JoinColumn(name = "user_id", nullable = false) // `likes` tablosundaki `user_id` sütununun, `users` tablosundaki ID'ye referans verdiğini belirtir. Boş olamaz.
     private User user; // Beğeniyi yapan kullanıcı nesnesi.
 
-    @ManyToOne(fetch = FetchType.LAZY) // Bir beğeninin sadece bir tweete aittir.
+    @ManyToOne(fetch = FetchType.LAZY) // bir tweete birden fazla beğeni gelebilir.
     @JoinColumn(name = "tweet_id", nullable = false) // `likes` tablosundaki `tweet_id` sütununun, `tweets` tablosundaki ID'ye referans verdiğini belirtir. Boş olamaz.
     private Tweet tweet; // Beğenilen tweet nesnesi.
 
