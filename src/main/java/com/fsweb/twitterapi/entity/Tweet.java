@@ -30,7 +30,7 @@ public class Tweet {
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id; // Tweet ID'si
 
-    @ManyToOne(fetch = FetchType.LAZY) // Bir Tweet'in sadece bir Kullanıcısı (Tweet Sahibi) vardır. Many (Tweet) to One (User) ilişkisi.
+    @ManyToOne(fetch = FetchType.LAZY) // bir kullanıcı birden çok tweet atar. Many (Tweet) to One (User) ilişkisi.
     // `fetch = FetchType.LAZY` demek, User nesnesinin sadece gerçekten ihtiyaç duyulduğunda veritabanından yüklenmesi anlamına gelir. Bu performansı artırır.
     @JoinColumn(name = "user_id", nullable = false) // `user_id` sütunu bu tablonun `Tweet` sahibi olan `User` tablosunun ID'sine referans verdiğini belirtir. `nullable = false` çünkü anonim tweet olamaz.
     private User user; // Tweet'in sahibi olan User nesnesi.
@@ -48,7 +48,7 @@ public class Tweet {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    // Self-referencing ManyToOne: Bir tweet başka bir tweete yanıt olabilir.
+    // Self-referencing ManyToOne: Bir tweet bir sürü reply tweet alabilir
     //Senaryo: Kullanıcı A bir tweet attı (Tweet a). Kullanıcı B, bu tweete yanıt (reply) verdi (Tweet b).
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reply_to_tweet_id") // Bu sütun, yanıt verilen Tweet'in ID'sine referans verir. Nullable olabilir çünkü her tweet bir yanıt değildir.
@@ -59,7 +59,7 @@ public class Tweet {
     @Column(name = "is_retweet", nullable = false)
     private Boolean isRetweet = false; // Bu tweet'in bir retweet olup olmadığını belirtir. Varsayılan olarak `false`.
 
-    // Self-referencing ManyToOne: Eğer bu bir retweet ise, retweet edilen orijinal tweet'e referans verir.
+    // Self-referencing ManyToOne: bir orjinal tweet bir sürü rt alabilir
     //Senaryo: Kullanıcı A bir tweet attı (Tweet a). Kullanıcı B, bu tweeti retweet etti (Tweet b). Kullanıcı C de tweet b yi retweet etti (Tweet c)...
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "original_tweet_id") // Bu sütun, retweet edilen orijinal Tweet'in ID'sine referans verir. Nullable olabilir çünkü her tweet bir retweet değildir.
@@ -69,7 +69,7 @@ public class Tweet {
     // TODO: One-to-Many Relationships (İleride eklenecek, şimdilik yorum satırı) ---
     // Bu kısım, bir tweet'in birden fazla yorumu, beğenisi veya retweet'i olabileceğini belirtir.
     // İlgili diğer Entity'leri oluşturduğumda bu ilişkileri buraya ekleyeceğim.
-    /*
+
     @OneToMany(mappedBy = "tweet", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Comment> comments = new HashSet<>();
 
@@ -82,5 +82,5 @@ public class Tweet {
     // Bu tweete verilen yanıtlar (yani bu tweet'e `replyToTweetId` ile referans veren diğer tweetler)
     @OneToMany(mappedBy = "replyToTweet", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Tweet> replies = new HashSet<>();
-    */
+
 }
