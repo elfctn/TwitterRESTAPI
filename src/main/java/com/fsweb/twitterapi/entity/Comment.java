@@ -28,13 +28,11 @@ public class Comment {
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id; // Yorum ID'si
 
-    @ManyToOne(fetch = FetchType.LAZY) // bir tweete birden çok yorum yapılır. Many (Comment) to One (Tweet) ilişkisi.
-    // Tweet nesnesi ihtiyaç duyulduğunda yüklenecek (Lazy).
+    @ManyToOne(fetch = FetchType.LAZY) // Bir yorum, sadece bir tweete aittir. Many (Comment) to One (Tweet) ilişkisi.
     @JoinColumn(name = "tweet_id", nullable = false) // `comments` tablosundaki `tweet_id` sütununun, `tweets` tablosundaki ID'ye referans verdiğini belirtir. Boş olamaz.
     private Tweet tweet; // Yorumun yapıldığı tweet nesnesi.
 
-    @ManyToOne(fetch = FetchType.LAZY) // bir kullanıcı birden çok yorum yapar. Many (Comment) to One (User) ilişkisi.
-    // User nesnesi ihtiyaç duyulduğunda yüklenecek (Lazy).
+    @ManyToOne(fetch = FetchType.LAZY) // Bir yorum, sadece bir kullanıcı tarafından yapılır. Many (Comment) to One (User) ilişkisi.
     @JoinColumn(name = "user_id", nullable = false) // `comments` tablosundaki `user_id` sütununun, `users` tablosundaki ID'ye referans verdiğini belirtir. Boş olamaz.
     private User user; // Yorumu yapan kullanıcı nesnesi.
 

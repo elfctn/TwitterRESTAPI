@@ -14,11 +14,11 @@ import org.hibernate.annotations.UpdateTimestamp; // Hibernate: Güncellenme zam
 
 import java.time.LocalDateTime; // Tarih ve saat tipi için
 import java.util.UUID; // Benzersiz ID (UUID) tipi için
-import java.util.HashSet; // Set koleksiyonu için
-import java.util.Set; // Set arayüzü için
+import java.util.HashSet; // Set koleksiyonu için (One-to-Many ilişkilerde kullanılacak)
+import java.util.Set; // Set arayüzü için (One-to-Many ilişkilerde kullanılacak)
 
 @Entity // Bu sınıfın bir JPA Entity'si olduğunu belirtir, yani bir veritabanı tablosuna karşılık gelir.
-@Table(name = "users") // Veritabanındaki tablo adını belirtir. "user" kelimesi bazı veritabanlarında rezerve edilmiş olabileceğinden "users" kullanmak daha güvenlidir.
+@Table(name = "users") // Veritabanındaki tablo adını belirtir. "user" PostgreSQL'de ayrılmış bir kelime olabileceğinden "users" kullanmak daha güvenlidir.
 @Data // Lombok anotasyonu: Getter, Setter, equals(), hashCode() ve toString() metodlarını otomatik olarak oluşturur. Kod tekrarını azaltır.
 @NoArgsConstructor // Lombok anotasyonu: Argümansız (varsayılan) bir constructor oluşturur. JPA için gereklidir.
 @AllArgsConstructor // Lombok anotasyonu: Sınıftaki tüm alanları içeren bir constructor oluşturur.
@@ -26,12 +26,12 @@ import java.util.Set; // Set arayüzü için
 public class User {
 
     @Id // Bu alanın birincil anahtar (Primary Key - PK) olduğunu belirtir. Her tablo için benzersiz bir tanımlayıcıdır.
-    @GeneratedValue(generator = "UUID") // ID'nin otomatik olarak nasıl oluşturulacağını belirtir. "UUID" adında bir generator kullanacağım.
-    @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator") // UUID'leri oluşturmak için Hibernate'in UUIDGenerator'ını kullanacağımı tanımlar.
+    @GeneratedValue(generator = "UUID") // ID'nin otomatik olarak nasıl oluşturulacağını belirtir. "UUID" adında bir generator kullanacağız.
+    @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator") // UUID'leri oluşturmak için Hibernate'in UUIDGenerator'ını kullanacağımızı tanımlar.
     @Column(name = "id", updatable = false, nullable = false) // Veritabanındaki sütun adını, güncellenip güncellenemeyeceğini ve boş geçilip geçilemeyeceğini belirtir. `updatable = false` ID'nin bir kez belirlendikten sonra değişmeyeceğini ifade eder. `nullable = false` boş olamayacağını belirtir.
     private UUID id; // Kullanıcı ID'si, benzersiz bir tanımlayıcı (UUID).
 
-    @Column(name = "username", unique = true, nullable = false) // `unique = true` bu sütundaki değerlerin tekrar edemeyeceğini benzersiz olacağını) belirtir.
+    @Column(name = "username", unique = true, nullable = false) // `unique = true` bu sütundaki değerlerin tekrar edemeyeceğini (benzersiz olacağını) belirtir.
     @NotBlank(message = "Username cannot be empty") // Validasyon: Kullanıcı adının boş veya sadece boşluklardan oluşamayacağını garanti eder.
     @Size(min = 3, max = 30, message = "Username must be between 3 and 30 characters") // Validasyon: Kullanıcı adının uzunluğunu belirler.
     private String username;
@@ -43,7 +43,7 @@ public class User {
 
     @Column(name = "password", nullable = false)
     @NotBlank(message = "Password cannot be empty")
-    private String password; // !!!!! Güvenlik için kritik.Bu şifreler veritabanına kaydedilmeden önce kesinlikle hashleyeceğim
+    private String password; // Dikkat: Bu şifreler veritabanına kaydedilmeden önce kesinlikle hash'lenmelidir! Güvenlik için kritik.
 
     @Column(name = "name")
     @Size(max = 50, message = "Name cannot exceed 50 characters")
@@ -67,24 +67,27 @@ public class User {
     @Column(name = "updated_at") // Opsiyonel, sadece güncellendiğinde değeri olur.
     private LocalDateTime updatedAt;
 
-    // TODO!!!! One-to-Many Relationships (İleride ekleyeceğim, şimdilik yorum satırı) ---
-    // Bu kısım, bir kullanıcının birden fazla tweet'i, yorumu, beğenisi veya retweet'i olabileceğini belirtir.
-    // İlgili diğer Entity'leri oluşturduğumda bu ilişkileri buraya ekleyeceğim.
-
+    // --- One-to-Many Relationships ---
+    // Bir kullanıcının attığı tweetler
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<Tweet> tweets = new HashSet<>();
+    // `mappedBy = "user"`: Bu ilişkinin Tweet sınıfındaki `user` alanıyla eşleştiğini belirtir.
+    // `cascade = CascadeType.ALL`: Bir User silindiğinde ona ait tüm Tweet, Comment, Like, Retweet'lerin de silinmesini sağlar.
+    // `orphanRemoval = true`: Bir koleksiyondan (örn. tweets) bir entity kaldırıldığında, o entity'nin veritabanından da silinmesini sağlar.
+    private Set<Tweet> tweets = new HashSet<>(); // Boş bir HashSet ile başlatmak iyi bir pratiktir.
 
+    // Bir kullanıcının yaptığı yorumlar
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Comment> comments = new HashSet<>();
 
+    // Bir kullanıcının attığı beğeniler
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Like> likes = new HashSet<>();
 
+    // Bir kullanıcının yaptığı retweetler
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Retweet> retweets = new HashSet<>();
 
-
-    // TODO!!!! Spring Security için kullanıcı rolleri (daha sonra ekleyeceğim)
+    // TODO: Spring Security için kullanıcı rolleri (daha sonra eklenecek)
     /*
     @ElementCollection(fetch = FetchType.EAGER) // Rolleri hemen yükle
     @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id")) // user_roles tablosunu ve ilişkisini belirt
