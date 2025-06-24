@@ -12,8 +12,6 @@ import java.time.LocalDateTime; // Tarih ve saat tipi için
 import java.util.UUID; // Benzersiz ID (UUID) tipi için
 
 @Entity // Bu sınıfın bir JPA Entity'si olduğunu belirtir.
-@Table(name = "retweets", uniqueConstraints = {@UniqueConstraint(columnNames = {"user_id", "original_tweet_id"})})
-// Veritabanındaki tablo adını "retweets" olarak belirler.
 // ***YENİ EKLEDİĞİM KISIM: uniqueConstraints***
 // user_id ve original_tweet_id sütunlarının birleşimi benzersiz olmalıdır.
 // Bu, bir kullanıcının aynı tweeti birden fazla kez retweet etmesini engeller.
@@ -29,11 +27,9 @@ public class Retweet {
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id; // Retweet için benzersiz ana ID.
 
-    @ManyToOne(fetch = FetchType.LAZY) // Bir kullanıcı birden fazla rt atabilir
     @JoinColumn(name = "user_id", nullable = false) // `retweets` tablosundaki `user_id` sütununun, `users` tablosundaki ID'ye referans verdiğini belirtir. Boş olamaz.
     private User user; // Retweeti yapan kullanıcı nesnesi.
 
-    @ManyToOne(fetch = FetchType.LAZY) // Bir orginal tweet üst üste birden çok rt alabilir.
     @JoinColumn(name = "original_tweet_id", nullable = false) // `retweets` tablosundaki `original_tweet_id` sütununun, `tweets` tablosundaki ID'ye referans verdiğini belirtir. Boş olamaz.
     private Tweet originalTweet; // Retweet edilen orijinal tweet nesnesi.
 
