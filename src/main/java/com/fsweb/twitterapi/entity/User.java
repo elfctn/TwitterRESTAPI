@@ -70,7 +70,7 @@ public class User {
     // TODO!!!! One-to-Many Relationships (İleride ekleyeceğim, şimdilik yorum satırı) ---
     // Bu kısım, bir kullanıcının birden fazla tweet'i, yorumu, beğenisi veya retweet'i olabileceğini belirtir.
     // İlgili diğer Entity'leri oluşturduğumda bu ilişkileri buraya ekleyeceğim.
-    /*
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Tweet> tweets = new HashSet<>();
 
@@ -82,7 +82,7 @@ public class User {
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Retweet> retweets = new HashSet<>();
-    */
+
 
     // TODO!!!! Spring Security için kullanıcı rolleri (daha sonra ekleyeceğim)
     /*
