@@ -1,45 +1,45 @@
 package com.fsweb.twitterapi;
 
-import com.fsweb.twitterapi.entity.Tweet; // Tweet entity'sini import ediyoruz
-import com.fsweb.twitterapi.entity.User; // User entity'sini import ediyoruz
-import com.fsweb.twitterapi.exception.ResourceNotFoundException; // Kaynak bulunamadı istisnamızı import ediyoruz
-import com.fsweb.twitterapi.exception.UnauthorizedException; // Yetkisiz işlem istisnamızı import ediyoruz
-import com.fsweb.twitterapi.repository.TweetRepository; // TweetRepository'yi mock'layacağız
-import com.fsweb.twitterapi.repository.UserRepository; // UserRepository'yi mock'layacağız
-import com.fsweb.twitterapi.service.TweetService; // Test edeceğimiz Service sınıfı
-import com.fsweb.twitterapi.dto.tweet.TweetCreateRequest; // DTO'larımızı import ediyoruz
+import com.fsweb.twitterapi.entity.Tweet;
+import com.fsweb.twitterapi.entity.User;
+import com.fsweb.twitterapi.exception.ResourceNotFoundException;
+import com.fsweb.twitterapi.exception.UnauthorizedException;
+import com.fsweb.twitterapi.repository.TweetRepository;
+import com.fsweb.twitterapi.repository.UserRepository;
+import com.fsweb.twitterapi.service.TweetService;
+import com.fsweb.twitterapi.dto.tweet.TweetCreateRequest;
 import com.fsweb.twitterapi.dto.tweet.TweetUpdateRequest;
 import com.fsweb.twitterapi.dto.tweet.TweetResponse;
 
-import org.junit.jupiter.api.BeforeEach; // Her test metodundan önce çalışacak kurulum için
-import org.junit.jupiter.api.DisplayName; // Test metodlarına daha okunabilir isimler vermek için
-import org.junit.jupiter.api.Test; // Bir test metodu olduğunu belirtmek için
-import org.junit.jupiter.api.extension.ExtendWith; // Mockito'yu JUnit 5 ile entegre etmek için
-import org.mockito.InjectMocks; // Mock'lanmış bağımlılıkları enjekte etmek için
-import org.mockito.Mock; // Sahte (mock) bağımlılıklar oluşturmak için
-import org.mockito.junit.jupiter.MockitoExtension; // Mockito uzantısı için
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime; // Tarih ve saat tipi için
-import java.util.Arrays; // Listeleri kolayca oluşturmak için
-import java.util.List; // List tipi için
-import java.util.Optional; // Optional kullanmak için
-import java.util.UUID; // UUID tipi için
+import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.*; // JUnit assert metotları için
-import static org.mockito.ArgumentMatchers.any; // Herhangi bir argümanı eşleştirmek için
-import static org.mockito.Mockito.*; // Mockito metotları için
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
-@ExtendWith(MockitoExtension.class) // JUnit 5'i Mockito ile entegre eder.
-@DisplayName("TweetService Unit Tests") // Test sınıfına okunabilir bir isim verir
+@ExtendWith(MockitoExtension.class)
+@DisplayName("TweetService Unit Tests")
 public class TweetServiceTest {
 
-    @Mock // TweetRepository'nin sahte bir versiyonunu oluşturur.
+    @Mock
     private TweetRepository tweetRepository;
 
-    @Mock // UserRepository'nin sahte bir versiyonunu oluşturur.
+    @Mock
     private UserRepository userRepository;
 
-    @InjectMocks // Test edilecek gerçek TweetService nesnesini oluşturur ve bağımlılıkları enjekte eder.
+    @InjectMocks
     private TweetService tweetService;
 
     // Testlerde kullanılacak örnek veri
@@ -56,7 +56,7 @@ public class TweetServiceTest {
     private UUID originalTweetId;
     private UUID replyTweetId;
 
-    @BeforeEach // Her test metodundan önce çalışacak kurulum metodu.
+    @BeforeEach
     void setUp() {
         testUserId = UUID.randomUUID();
         testTweetId = UUID.randomUUID();
@@ -85,10 +85,10 @@ public class TweetServiceTest {
                 .user(testUser)
                 .createdAt(LocalDateTime.now())
                 .isRetweet(false)
-                .replyToTweet(originalTweet) // Yanıt verilen tweet
+                .replyToTweet(originalTweet)
                 .build();
 
-        testTweet = Tweet.builder()
+        testTweet = Tweet.builder() // Bu testTweet objesi genel bir placeholder, create metotlarında yeni objeler döneceğiz
                 .id(testTweetId)
                 .content("Test Tweet Content")
                 .user(testUser)
@@ -124,15 +124,23 @@ public class TweetServiceTest {
     @DisplayName("should create a basic tweet successfully")
     void shouldCreateBasicTweetSuccessfully() {
         when(userRepository.findById(testUserId)).thenReturn(Optional.of(testUser));
-        when(tweetRepository.save(any(Tweet.class))).thenReturn(testTweet); // Kaydedilecek tweet testTweet olsun
+        // Düzeltme: Save metodu çağrıldığında, createRequest'in içeriğini içeren yeni bir Tweet objesi döndür.
+        Tweet savedBasicTweet = Tweet.builder()
+                .id(testTweetId)
+                .content(createRequest.getContent()) // Request'ten gelen content
+                .user(testUser)
+                .createdAt(LocalDateTime.now())
+                .isRetweet(false)
+                .build();
+        when(tweetRepository.save(any(Tweet.class))).thenReturn(savedBasicTweet);
 
         TweetResponse result = tweetService.createTweet(createRequest, testUserId);
 
         assertNotNull(result);
         assertEquals(testTweetId, result.getId());
-        assertEquals(createRequest.getContent(), result.getContent());
+        assertEquals(createRequest.getContent(), result.getContent()); // Assertion doğru
         assertFalse(result.getIsRetweet());
-        assertEquals(testUser.getUsername(), result.getUser().getUsername()); // UserResponse dönüşümü kontrolü
+        assertEquals(testUser.getUsername(), result.getUser().getUsername());
 
         verify(userRepository, times(1)).findById(testUserId);
         verify(tweetRepository, times(1)).save(any(Tweet.class));
@@ -143,15 +151,23 @@ public class TweetServiceTest {
     void shouldCreateReplyTweetSuccessfully() {
         when(userRepository.findById(testUserId)).thenReturn(Optional.of(testUser));
         when(tweetRepository.findById(originalTweetId)).thenReturn(Optional.of(originalTweet));
-        // Save metodu için, replyTweet entity'sini döndürecek mock davranışı ayarlıyoruz
-        when(tweetRepository.save(any(Tweet.class))).thenReturn(replyTweet);
+        // Düzeltme: Save metodu çağrıldığında, createReplyRequest'in içeriğini içeren yeni bir Tweet objesi döndür.
+        Tweet savedReplyTweet = Tweet.builder()
+                .id(replyTweetId)
+                .content(createReplyRequest.getContent()) // Request'ten gelen content
+                .user(testUser)
+                .createdAt(LocalDateTime.now())
+                .isRetweet(false)
+                .replyToTweet(originalTweet)
+                .build();
+        when(tweetRepository.save(any(Tweet.class))).thenReturn(savedReplyTweet);
 
         TweetResponse result = tweetService.createTweet(createReplyRequest, testUserId);
 
         assertNotNull(result);
         assertEquals(replyTweetId, result.getId());
-        assertEquals(createReplyRequest.getContent(), result.getContent());
-        assertEquals(originalTweetId, result.getReplyToTweetId()); // Yanıt ID'sinin doğru olduğunu kontrol et
+        assertEquals(createReplyRequest.getContent(), result.getContent()); // Assertion doğru
+        assertEquals(originalTweetId, result.getReplyToTweetId());
         assertFalse(result.getIsRetweet());
 
         verify(userRepository, times(1)).findById(testUserId);
@@ -167,10 +183,10 @@ public class TweetServiceTest {
         // Save metodu için, isRetweet true olan bir tweet döndürecek şekilde mock ayarlıyoruz
         Tweet savedRetweet = Tweet.builder()
                 .id(UUID.randomUUID())
-                .content(createRetweetRequest.getContent())
+                .content(createRetweetRequest.getContent()) // Request'ten gelen content (boş olabilir)
                 .user(testUser)
                 .originalTweet(originalTweet)
-                .isRetweet(true)
+                .isRetweet(true) // Retweet olduğu için true
                 .createdAt(LocalDateTime.now())
                 .build();
         when(tweetRepository.save(any(Tweet.class))).thenReturn(savedRetweet);
@@ -178,7 +194,7 @@ public class TweetServiceTest {
         TweetResponse result = tweetService.createTweet(createRetweetRequest, testUserId);
 
         assertNotNull(result);
-        assertEquals(originalTweetId, result.getOriginalTweetId()); // Orijinal tweet ID'sinin doğru olduğunu kontrol et
+        assertEquals(originalTweetId, result.getOriginalTweetId());
         assertTrue(result.getIsRetweet()); // isRetweet'in true olduğunu kontrol et
 
         verify(userRepository, times(1)).findById(testUserId);
@@ -203,7 +219,7 @@ public class TweetServiceTest {
     @DisplayName("should throw ResourceNotFoundException when replying to non-existent tweet")
     void shouldThrowExceptionWhenReplyingToNonExistentTweet() {
         when(userRepository.findById(testUserId)).thenReturn(Optional.of(testUser));
-        when(tweetRepository.findById(any(UUID.class))).thenReturn(Optional.empty()); // Reply tweet bulunamıyor
+        when(tweetRepository.findById(any(UUID.class))).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> {
             tweetService.createTweet(createReplyRequest, testUserId);
@@ -218,7 +234,7 @@ public class TweetServiceTest {
     @DisplayName("should throw ResourceNotFoundException when retweeting non-existent original tweet")
     void shouldThrowExceptionWhenRetweetingNonExistentOriginalTweet() {
         when(userRepository.findById(testUserId)).thenReturn(Optional.of(testUser));
-        when(tweetRepository.findById(any(UUID.class))).thenReturn(Optional.empty()); // Original tweet bulunamıyor
+        when(tweetRepository.findById(any(UUID.class))).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> {
             tweetService.createTweet(createRetweetRequest, testUserId);
@@ -263,7 +279,7 @@ public class TweetServiceTest {
     @Test
     @DisplayName("should return list of tweets for a given user id")
     void shouldReturnListOfTweetsForGivenUserId() {
-        List<Tweet> tweets = Arrays.asList(testTweet, originalTweet); // Test için iki örnek tweet
+        List<Tweet> tweets = Arrays.asList(testTweet, originalTweet);
         when(tweetRepository.findByUserId(testUserId)).thenReturn(tweets);
 
         List<TweetResponse> result = tweetService.getTweetsByUserId(testUserId);
@@ -272,7 +288,6 @@ public class TweetServiceTest {
         assertEquals(2, result.size());
         assertEquals(testTweet.getId(), result.get(0).getId());
         assertEquals(originalTweet.getId(), result.get(1).getId());
-        // Dönüşümün doğru çalıştığını basitçe doğrula
         assertEquals(testUser.getUsername(), result.get(0).getUser().getUsername());
 
         verify(tweetRepository, times(1)).findByUserId(testUserId);
@@ -281,7 +296,7 @@ public class TweetServiceTest {
     @Test
     @DisplayName("should return empty list when no tweets found for user id")
     void shouldReturnEmptyListWhenNoTweetsFoundForUserId() {
-        when(tweetRepository.findByUserId(any(UUID.class))).thenReturn(List.of()); // Boş liste döndür
+        when(tweetRepository.findByUserId(any(UUID.class))).thenReturn(List.of());
 
         List<TweetResponse> result = tweetService.getTweetsByUserId(UUID.randomUUID());
 
@@ -298,12 +313,23 @@ public class TweetServiceTest {
     void shouldUpdateTweetSuccessfullyWhenAuthorized() {
         // Mock davranışı: Tweet ve onu güncelleyen kullanıcı aynı
         when(tweetRepository.findById(testTweetId)).thenReturn(Optional.of(testTweet));
-        when(tweetRepository.save(any(Tweet.class))).thenReturn(testTweet); // Güncellenmiş tweet'i döndür
+        // Düzeltme: Save metodu çağrıldığında, updateRequest'in içeriğini içeren yeni bir Tweet objesi döndür.
+        Tweet updatedTweetEntity = Tweet.builder()
+                .id(testTweetId)
+                .content(updateRequest.getContent())
+                .user(testUser)
+                .createdAt(testTweet.getCreatedAt())
+                .updatedAt(LocalDateTime.now())
+                .isRetweet(testTweet.getIsRetweet())
+                .replyToTweet(testTweet.getReplyToTweet())
+                .originalTweet(testTweet.getOriginalTweet())
+                .build();
+        when(tweetRepository.save(any(Tweet.class))).thenReturn(updatedTweetEntity);
 
         TweetResponse result = tweetService.updateTweet(testTweetId, updateRequest, testUserId);
 
         assertNotNull(result);
-        assertEquals(updateRequest.getContent(), result.getContent()); // İçeriğin güncellendiğini doğrula
+        assertEquals(updateRequest.getContent(), result.getContent());
         verify(tweetRepository, times(1)).findById(testTweetId);
         verify(tweetRepository, times(1)).save(any(Tweet.class));
     }
@@ -340,13 +366,13 @@ public class TweetServiceTest {
     @Test
     @DisplayName("should delete tweet successfully when authorized")
     void shouldDeleteTweetSuccessfullyWhenAuthorized() {
-        when(tweetRepository.findById(testTweetId)).thenReturn(Optional.of(testTweet)); // Tweet'i bul
-        doNothing().when(tweetRepository).delete(any(Tweet.class)); // delete metodunun bir şey yapmamasını mock'la
+        when(tweetRepository.findById(testTweetId)).thenReturn(Optional.of(testTweet));
+        doNothing().when(tweetRepository).delete(any(Tweet.class));
 
-        tweetService.deleteTweet(testTweetId, testUserId); // Metodu çağır
+        tweetService.deleteTweet(testTweetId, testUserId);
 
         verify(tweetRepository, times(1)).findById(testTweetId);
-        verify(tweetRepository, times(1)).delete(testTweet); // Doğru tweet'in silindiğini doğrula
+        verify(tweetRepository, times(1)).delete(testTweet);
     }
 
     @Test

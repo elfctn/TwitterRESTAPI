@@ -25,7 +25,7 @@ import java.util.UUID; // UUID tipi için
 import static org.junit.jupiter.api.Assertions.*; // JUnit assert metotları için (assertEquals, assertThrows vb.)
 import static org.mockito.ArgumentMatchers.any; // Herhangi bir argümanı eşleştirmek için
 import static org.mockito.Mockito.*; // Mockito metotları için (when, verify vb.)
-
+//
 @ExtendWith(MockitoExtension.class) // JUnit 5'i Mockito ile entegre eder. Bu, @Mock ve @InjectMocks anotasyonlarının çalışmasını sağlar.
 @DisplayName("UserService Unit Tests") // Test sınıfına okunabilir bir isim verir
 public class UserServiceTest {

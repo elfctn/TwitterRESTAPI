@@ -1,4 +1,4 @@
-package com.fsweb.twitterapi;
+package com.fsweb.twitterapi; // Paket adı güncellendi
 
 import com.fsweb.twitterapi.entity.Like; // Like entity'sini import ediyoruz
 import com.fsweb.twitterapi.entity.Tweet; // Tweet entity'sini import ediyoruz
@@ -107,14 +107,16 @@ public class LikeServiceTest {
     @Test
     @DisplayName("should throw ResourceNotFoundException when liking tweet by non-existent user")
     void shouldThrowExceptionWhenLikingTweetByNonExistentUser() {
-        when(userRepository.findById(any(UUID.class))).thenReturn(Optional.empty());
+        // Düzeltme: Tweet'i bulma çağrısının başarılı olmasını sağla, böylece kullanıcı aramasına geçilebilir.
+        when(tweetRepository.findById(testTweetId)).thenReturn(Optional.of(testTweet));
+        when(userRepository.findById(any(UUID.class))).thenReturn(Optional.empty()); // Kullanıcı bulunamıyor
 
         assertThrows(ResourceNotFoundException.class, () -> {
             likeService.likeTweet(testTweetId, UUID.randomUUID());
         });
 
+        verify(tweetRepository, times(1)).findById(testTweetId);
         verify(userRepository, times(1)).findById(any(UUID.class));
-        verify(tweetRepository, never()).findById(any(UUID.class));
         verify(likeRepository, never()).existsByUserIdAndTweetId(any(UUID.class), any(UUID.class));
         verify(likeRepository, never()).save(any(Like.class));
     }
@@ -122,14 +124,16 @@ public class LikeServiceTest {
     @Test
     @DisplayName("should throw ResourceNotFoundException when liking non-existent tweet")
     void shouldThrowExceptionWhenLikingNonExistentTweet() {
-        when(userRepository.findById(testUserId)).thenReturn(Optional.of(testUser));
-        when(tweetRepository.findById(any(UUID.class))).thenReturn(Optional.empty());
+        // Düzeltme: Kullanıcıyı bulma çağrısının yapılmamasını beklediğimiz için verify(userRepository, never()) kullanıyoruz.
+        // likeTweet metodunda önce Tweet bulunur, Tweet bulunamazsa kod userRepository.findById'a ulaşmaz.
+        when(tweetRepository.findById(any(UUID.class))).thenReturn(Optional.empty()); // Tweet bulunamıyor
 
         assertThrows(ResourceNotFoundException.class, () -> {
-            likeService.likeTweet(UUID.randomUUID(), testUserId);
+            likeService.likeTweet(UUID.randomUUID(), testUserId); // Rastgele bir tweet ID'si ile arama yap
         });
 
-        verify(userRepository, times(1)).findById(testUserId);
+        // Düzeltme: userRepository.findById çağrısı hiç yapılmamalıdır.
+        verify(userRepository, never()).findById(any(UUID.class)); // Bu satır düzeltildi.
         verify(tweetRepository, times(1)).findById(any(UUID.class));
         verify(likeRepository, never()).existsByUserIdAndTweetId(any(UUID.class), any(UUID.class));
         verify(likeRepository, never()).save(any(Like.class));

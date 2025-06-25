@@ -1,5 +1,4 @@
-package com.fsweb.twitterapi
-        ;
+package com.fsweb.twitterapi; // Paket adı güncellendi
 
 import com.fsweb.twitterapi.entity.Retweet; // Retweet entity'sini import ediyoruz
 import com.fsweb.twitterapi.entity.Tweet; // Tweet entity'sini import ediyoruz
@@ -108,14 +107,18 @@ public class RetweetServiceTest {
     @Test
     @DisplayName("should throw ResourceNotFoundException when retweeting by non-existent user")
     void shouldThrowExceptionWhenRetweetingByNonExistentUser() {
-        when(userRepository.findById(any(UUID.class))).thenReturn(Optional.empty());
+        // Düzeltme: Orijinal tweet'i bulma çağrısının başarılı olmasını sağla, böylece kullanıcı aramasına geçilebilir.
+        when(tweetRepository.findById(originalTweetId)).thenReturn(Optional.of(originalTweet));
+        when(userRepository.findById(any(UUID.class))).thenReturn(Optional.empty()); // Kullanıcı bulunamıyor
 
         assertThrows(ResourceNotFoundException.class, () -> {
             retweetService.retweetTweet(originalTweetId, UUID.randomUUID());
         });
 
+        // Düzeltme: tweetRepository.findById çağrısının yapıldığını doğrula
+        verify(tweetRepository, times(1)).findById(originalTweetId);
+        // Düzeltme: userRepository.findById çağrısının yapıldığını doğrula
         verify(userRepository, times(1)).findById(any(UUID.class));
-        verify(tweetRepository, never()).findById(any(UUID.class));
         verify(retweetRepository, never()).existsByUserIdAndOriginalTweetId(any(UUID.class), any(UUID.class));
         verify(retweetRepository, never()).save(any(Retweet.class));
     }
@@ -123,14 +126,16 @@ public class RetweetServiceTest {
     @Test
     @DisplayName("should throw ResourceNotFoundException when retweeting non-existent original tweet")
     void shouldThrowExceptionWhenRetweetingNonExistentOriginalTweet() {
-        when(userRepository.findById(testUserId)).thenReturn(Optional.of(testUser));
-        when(tweetRepository.findById(any(UUID.class))).thenReturn(Optional.empty());
+        // Düzeltme: Kullanıcıyı bulma çağrısının hiç yapılmamasını bekle.
+        // retweetTweet metodunda önce Original Tweet bulunur, o bulunamazsa kod userRepository.findById'a ulaşmaz.
+        when(tweetRepository.findById(any(UUID.class))).thenReturn(Optional.empty()); // Orijinal tweet bulunamıyor
 
         assertThrows(ResourceNotFoundException.class, () -> {
-            retweetService.retweetTweet(UUID.randomUUID(), testUserId);
+            retweetService.retweetTweet(UUID.randomUUID(), testUserId); // Rastgele bir tweet ID'si ile arama yap
         });
 
-        verify(userRepository, times(1)).findById(testUserId);
+        // Düzeltme: userRepository.findById çağrısı hiç yapılmamalıdır.
+        verify(userRepository, never()).findById(any(UUID.class)); // Bu satır düzeltildi.
         verify(tweetRepository, times(1)).findById(any(UUID.class));
         verify(retweetRepository, never()).existsByUserIdAndOriginalTweetId(any(UUID.class), any(UUID.class));
         verify(retweetRepository, never()).save(any(Retweet.class));

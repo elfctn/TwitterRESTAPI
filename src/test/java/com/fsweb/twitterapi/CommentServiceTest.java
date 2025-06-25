@@ -1,4 +1,4 @@
-package com.fsweb.twitterapi;
+package com.fsweb.twitterapi; // Paket adı güncellendi
 
 import com.fsweb.twitterapi.entity.Comment; // Comment entity'sini import ediyoruz
 import com.fsweb.twitterapi.entity.Tweet; // Tweet entity'sini import ediyoruz
@@ -12,6 +12,7 @@ import com.fsweb.twitterapi.service.CommentService; // Test edeceğimiz Service 
 import com.fsweb.twitterapi.dto.comment.CommentCreateRequest; // DTO'larımızı import ediyoruz
 import com.fsweb.twitterapi.dto.comment.CommentUpdateRequest;
 import com.fsweb.twitterapi.dto.comment.CommentResponse;
+import com.fsweb.twitterapi.dto.user.UserResponse; // UserResponse DTO'sunu import ediyoruz
 
 import org.junit.jupiter.api.BeforeEach; // Her test metodundan önce çalışacak kurulum için
 import org.junit.jupiter.api.DisplayName; // Test metodlarına daha okunabilir isimler vermek için
@@ -102,14 +103,14 @@ public class CommentServiceTest {
 
         testComment = Comment.builder()
                 .id(testCommentId)
-                .content("This is a test comment")
+                .content("This is a test comment") // Test verisi: "This is a test comment"
                 .tweet(testTweet)
                 .user(commentOwnerUser) // Yorumun sahibi commentOwnerUser
                 .createdAt(LocalDateTime.now())
                 .build();
 
         createRequest = CommentCreateRequest.builder()
-                .content("New comment content")
+                .content("New comment content") // Request verisi: "New comment content"
                 .build();
 
         updateRequest = CommentUpdateRequest.builder()
@@ -124,13 +125,21 @@ public class CommentServiceTest {
     void shouldAddCommentSuccessfully() {
         when(tweetRepository.findById(testTweetId)).thenReturn(Optional.of(testTweet));
         when(userRepository.findById(commentOwnerUserId)).thenReturn(Optional.of(commentOwnerUser));
-        when(commentRepository.save(any(Comment.class))).thenReturn(testComment);
+        // Düzeltme: Save metodu çağrıldığında, createRequest'in içeriğini içeren yeni bir Comment objesi döndür.
+        Comment savedComment = Comment.builder()
+                .id(testCommentId)
+                .content(createRequest.getContent()) // Request'ten gelen content
+                .tweet(testTweet)
+                .user(commentOwnerUser)
+                .createdAt(LocalDateTime.now())
+                .build();
+        when(commentRepository.save(any(Comment.class))).thenReturn(savedComment);
 
         CommentResponse result = commentService.addComment(createRequest, testTweetId, commentOwnerUserId);
 
         assertNotNull(result);
         assertEquals(testCommentId, result.getId());
-        assertEquals(createRequest.getContent(), result.getContent());
+        assertEquals(createRequest.getContent(), result.getContent()); // Assertion artık doğru
         assertEquals(testTweetId, result.getTweetId());
         assertEquals(commentOwnerUserId, result.getUser().getId());
 
@@ -174,7 +183,16 @@ public class CommentServiceTest {
     @DisplayName("should update comment successfully when authorized as comment owner")
     void shouldUpdateCommentSuccessfullyWhenAuthorizedAsCommentOwner() {
         when(commentRepository.findById(testCommentId)).thenReturn(Optional.of(testComment));
-        when(commentRepository.save(any(Comment.class))).thenReturn(testComment); // Güncellenmiş yorumu döndür
+        // Düzeltme: Save metodu çağrıldığında, updateRequest'in içeriğini içeren yeni bir Comment objesi döndür.
+        Comment updatedCommentEntity = Comment.builder()
+                .id(testCommentId)
+                .content(updateRequest.getContent())
+                .tweet(testTweet)
+                .user(commentOwnerUser)
+                .createdAt(testComment.getCreatedAt())
+                .updatedAt(LocalDateTime.now())
+                .build();
+        when(commentRepository.save(any(Comment.class))).thenReturn(updatedCommentEntity);
 
         CommentResponse result = commentService.updateComment(testCommentId, updateRequest, commentOwnerUserId);
 
@@ -269,7 +287,14 @@ public class CommentServiceTest {
     void shouldReturnListOfCommentsForGivenTweetId() {
         List<Comment> comments = Arrays.asList(testComment, Comment.builder().id(UUID.randomUUID()).content("Another comment").tweet(testTweet).user(otherUser).createdAt(LocalDateTime.now()).build());
         when(commentRepository.findByTweetId(testTweetId)).thenReturn(comments);
-        when(userRepository.findById(any(UUID.class))).thenReturn(Optional.of(commentOwnerUser), Optional.of(otherUser)); // Mapleme için kullanıcıları mock'la
+        // Düzeltme: userRepository.findById stubbing'i kaldırıldı, çünkü doğrudan çağrılmıyor.
+        // Lazy loading, User objesinin ancak get metodu çağrıldığında yüklenmesini sağlar.
+        // Bu test, CommentService içindeki mapCommentToCommentResponse metodunun user'a eriştiği varsayımıyla yazılmıştır.
+        // Eğer mapCommentToCommentResponse metodunda User objesine erişiliyorsa (ki CommentResponse DTO'sunu döndürüyor),
+        // o zaman mapleme sırasında userRepository.findById çağrısı beklenebilir.
+        // Current kodda, mapCommentToCommentResponse içinde user.getId() gibi çağrılar var.
+        // Bu durumda User objesinin yüklü olması gerekir.
+        // Bu test için sadece commentRepository.findByTweetId yeterlidir, mapleme testini ayrı bir testte yapabiliriz.
 
         List<CommentResponse> result = commentService.getCommentsByTweetId(testTweetId);
 
