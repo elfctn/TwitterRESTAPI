@@ -1,4 +1,4 @@
-package com.fsweb.twitterapi.security;
+package com.fsweb.twitterapi.security.jwt;
 
 import io.jsonwebtoken.*; // JWT kütüphanesinin ana sınıfları
 import io.jsonwebtoken.io.Decoders; // Base64 çözücü (io.jsonwebtoken.io paketinden)
