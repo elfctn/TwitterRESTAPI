@@ -1,13 +1,20 @@
 package com.fsweb.twitterapi.service;
 
-import com.fsweb.twitterapi.entity.User; // User entity'sini import ediyoruz
+import com.fsweb.twitterapi.entity.User; // Kullanıcı entity'si
 import com.fsweb.twitterapi.repository.UserRepository; // UserRepository'yi enjekte edeceğiz
 import com.fsweb.twitterapi.exception.ResourceNotFoundException; // Kaynak bulunamadığında fırlatılacak istisna
-import com.fsweb.twitterapi.exception.CustomValidationException; // Kullanıcı adı/e-posta zaten var gibi validasyon istisnaları için
+import com.fsweb.twitterapi.exception.CustomValidationException; // İş kuralı validasyonları için istisna (örn. kullanıcı adı/e-posta zaten var)
 import com.fsweb.twitterapi.dto.user.UserRegisterRequest; // Kullanıcı kayıt isteği DTO'su
 import com.fsweb.twitterapi.dto.user.UserResponse; // Kullanıcı yanıt DTO'su
 import com.fsweb.twitterapi.dto.user.UserUpdateRequest; // Kullanıcı güncelleme isteği DTO'su
+import com.fsweb.twitterapi.dto.user.UserLoginRequest; // YENİ: Kullanıcı giriş isteği DTO'su
+import com.fsweb.twitterapi.dto.auth.JwtResponse; // YENİ: JWT yanıt DTO'su
+import com.fsweb.twitterapi.security.jwt.JwtProvider; // YENİ: JWT Sağlayıcımızı import ediyoruz
 
+import org.springframework.security.authentication.AuthenticationManager; // YENİ: Kimlik doğrulama yöneticisi
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken; // YENİ: Kimlik doğrulama tokenı
+import org.springframework.security.core.Authentication; // YENİ: Kimlik doğrulama objesi
+import org.springframework.security.core.context.SecurityContextHolder; // YENİ: Güvenlik bağlamını yönetmek için
 import org.springframework.security.crypto.password.PasswordEncoder; // Şifreleme için PasswordEncoder'ı import ediyoruz
 import org.springframework.stereotype.Service; // Bu sınıfın bir Spring Service bileşeni olduğunu belirtmek için
 import org.springframework.transaction.annotation.Transactional; // İşlemleri (transaction) yönetmek için
@@ -20,12 +27,17 @@ public class UserService {
 
     private final UserRepository userRepository; // UserRepository'yi enjekte ediyoruz (veri erişimi için)
     private final PasswordEncoder passwordEncoder; // PasswordEncoder'ı enjekte ediyoruz (şifre hashleme için)
+    private final AuthenticationManager authenticationManager; // YENİ EKLENDİ: Spring Security'nin kimlik doğrulama yöneticisi
+    private final JwtProvider jwtProvider; // YENİ EKLENDİ: JWT tokenları oluşturma ve doğrulama için
 
-    // Constructor Injection: Spring, UserService nesnesi oluşturulduğunda bu bağımlılıkları otomatik olarak sağlar.
+    // Constructor Injection: Tüm bağımlılıkları Spring tarafından enjekte ediyoruz.
     // Bu, bağımlılık enjeksiyonunun önerilen yoludur.
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder,
+                       AuthenticationManager authenticationManager, JwtProvider jwtProvider) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.authenticationManager = authenticationManager;
+        this.jwtProvider = jwtProvider;
     }
 
     /**
@@ -62,6 +74,47 @@ public class UserService {
 
         // 4. Kaydedilen User entity'sinden UserResponse DTO'su oluştur ve döndür
         return mapUserToUserResponse(savedUser);
+    }
+
+    /**
+     * Kullanıcının kimlik bilgilerini doğrulayarak giriş yapmasını sağlar ve bir JWT token döndürür.
+     * Bu metot, `/login` endpoint'i tarafından çağrılacak.
+     *
+     * @param request Kullanıcı giriş bilgileri içeren DTO (usernameOrEmail ve password)
+     * @return Başarılı giriş durumunda JWT token ve kullanıcı detayları içeren JwtResponse DTO'su
+     */
+    public JwtResponse loginUser(UserLoginRequest request) {
+        // 1. Kullanıcı adı ve şifreyi içeren bir kimlik doğrulama tokenı oluştur.
+        // AuthenticationManager, bu tokenı CustomUserDetailsService ve PasswordEncoder kullanarak doğrulayacak.
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        request.getUsernameOrEmail(), // Kullanıcı adı veya e-posta
+                        request.getPassword()        // Şifre
+                )
+        );
+
+        // 2. Kimlik doğrulama başarılı olursa, Authentication objesini Spring Security ContextHolder'ına set et.
+        // Bu, Spring Security'nin mevcut isteğin geri kalanında (örneğin Controller'da) kullanıcının kimliğini tanımasını sağlar.
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        // 3. Kimlik doğrulaması yapılmış Authentication objesinden JWT tokenı oluştur.
+        String jwt = jwtProvider.generateJwtToken(authentication);
+
+        // 4. Kimlik doğrulama yapılmış kullanıcının detaylarını al.
+        // Authentication objesi içindeki principal (ana kimlik) UserDetails implementasyonudur.
+        // Bu UserDetails içindeki kullanıcı adını kullanarak veritabanından User entity'sini çekiyoruz
+        // çünkü JwtResponse için User entity'sindeki id, email gibi diğer bilgilere ihtiyacımız var.
+        String username = jwtProvider.getUserNameFromJwtToken(jwt); // JWT'den kullanıcı adını al
+        User user = userRepository.findByUsernameOrEmail(username, username)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "username/email", username));
+
+        // 5. JWT tokenı ve kullanıcı bilgilerini içeren JwtResponse DTO'sunu döndür.
+        return JwtResponse.builder()
+                .token(jwt)
+                .id(user.getId())
+                .username(user.getUsername())
+                .email(user.getEmail())
+                .build();
     }
 
     /**
@@ -137,7 +190,4 @@ public class UserService {
                 .updatedAt(user.getUpdatedAt())
                 .build();
     }
-
-    // TODO: Login metodu daha sonra Spring Security ve JWT ile birlikte ekleyeceğim.
-    // public String loginUser(UserLoginRequest request) { ... }
 }
