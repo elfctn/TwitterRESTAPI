@@ -1,4 +1,4 @@
-package com.fsweb.twitterapi.test;
+package com.fsweb.twitterapi;
 
 import com.fsweb.twitterapi.entity.Tweet; // Tweet entity'sini import ediyoruz
 import com.fsweb.twitterapi.entity.User; // User entity'sini import ediyoruz

@@ -1,4 +1,4 @@
-package com.fsweb.twitterapi.test;
+package com.fsweb.twitterapi;
 
 import com.fsweb.twitterapi.entity.Comment; // Comment entity'sini import ediyoruz
 import com.fsweb.twitterapi.entity.Tweet; // Tweet entity'sini import ediyoruz
@@ -12,7 +12,6 @@ import com.fsweb.twitterapi.service.CommentService; // Test edeceğimiz Service 
 import com.fsweb.twitterapi.dto.comment.CommentCreateRequest; // DTO'larımızı import ediyoruz
 import com.fsweb.twitterapi.dto.comment.CommentUpdateRequest;
 import com.fsweb.twitterapi.dto.comment.CommentResponse;
-import com.fsweb.twitterapi.dto.user.UserResponse; // UserResponse DTO'sunu import ediyoruz
 
 import org.junit.jupiter.api.BeforeEach; // Her test metodundan önce çalışacak kurulum için
 import org.junit.jupiter.api.DisplayName; // Test metodlarına daha okunabilir isimler vermek için
