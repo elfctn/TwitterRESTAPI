@@ -1,36 +1,44 @@
 package com.fsweb.twitterapi.controller;
 
-import com.fsweb.twitterapi.dto.tweet.TweetCreateRequest; // Tweet oluşturma isteği DTO'su
-import com.fsweb.twitterapi.dto.tweet.TweetUpdateRequest; // Tweet güncelleme isteği DTO'su
-import com.fsweb.twitterapi.dto.tweet.TweetResponse; // Tweet yanıt DTO'su
-import com.fsweb.twitterapi.service.TweetService; // TweetService'i enjekte edeceğiz
+import com.fsweb.twitterapi.dto.tweet.TweetCreateRequest;
+import com.fsweb.twitterapi.dto.tweet.TweetUpdateRequest;
+import com.fsweb.twitterapi.dto.tweet.TweetResponse;
+import com.fsweb.twitterapi.service.TweetService;
+import com.fsweb.twitterapi.exception.UnauthorizedException;
+import com.fsweb.twitterapi.security.UserPrincipal;
 
-import jakarta.validation.Valid; // Validasyon için
-import org.springframework.http.HttpStatus; // HTTP durum kodları için
-import org.springframework.http.ResponseEntity; // HTTP yanıtı oluşturmak için
-import org.springframework.security.access.prepost.PreAuthorize; // Metot bazlı yetkilendirme için
-import org.springframework.security.core.Authentication; // Mevcut kimlik doğrulama objesi için
-import org.springframework.security.core.context.SecurityContextHolder; // Güvenlik bağlamından kullanıcı bilgilerini almak için
-import org.springframework.web.bind.annotation.DeleteMapping; // DELETE isteklerini karşılamak için
-import org.springframework.web.bind.annotation.GetMapping; // GET isteklerini karşılamak için
-import org.springframework.web.bind.annotation.PathVariable; // URL yol değişkenlerini almak için
-import org.springframework.web.bind.annotation.PostMapping; // POST isteklerini karşılamak için
-import org.springframework.web.bind.annotation.PutMapping; // PUT isteklerini karşılamak için
-import org.springframework.web.bind.annotation.RequestBody; // HTTP isteğinin body'sini Java objesine dönüştürmek için
-import org.springframework.web.bind.annotation.RequestMapping; // İstekleri belirli bir URL yoluna eşlemek için
-import org.springframework.web.bind.annotation.RequestParam; // URL sorgu parametrelerini almak için
-import org.springframework.web.bind.annotation.RestController; // RESTful Controller olduğunu belirtmek için
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List; // List tipini kullanmak için
-import java.util.UUID; // UUID tipi için
+import java.util.List;
+import java.util.UUID;
 
-@RestController // Bu sınıfın bir REST Controller olduğunu belirtir.
-@RequestMapping("/tweets") // Bu Controller'daki tüm endpoint'lerin "/tweets" yoluyla başlayacağını belirtir.
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+
+@RestController
+@RequestMapping("/tweets")
 public class TweetController {
 
-    private final TweetService tweetService; // TweetService'i enjekte ediyoruz
+    private static final Logger logger = LoggerFactory.getLogger(TweetController.class);
 
-    // Constructor Injection
+
+    private final TweetService tweetService;
+
     public TweetController(TweetService tweetService) {
         this.tweetService = tweetService;
     }
@@ -43,15 +51,17 @@ public class TweetController {
      * @param request Yeni tweet bilgileri içeren TweetCreateRequest DTO
      * @return Oluşturulan tweet'in TweetResponse DTO'su ve HTTP 201 Created durumu
      */
-    @PostMapping // POST isteği için "/tweets" yolunu eşler
-    @PreAuthorize("isAuthenticated()") // Bu metoda erişim için kullanıcının kimlik doğrulamasının yapılmış olması gerekir.
+    @PostMapping
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<TweetResponse> createTweet(@Valid @RequestBody TweetCreateRequest request) {
-        // Güvenlik bağlamından mevcut kullanıcının ID'sini alıyoruz.
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        UUID currentUserId = UUID.fromString(authentication.getName()); // authenticated.getName() genellikle username/email verir
+        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+        UUID currentUserId = userPrincipal.getId(); // Gerçek UUID'yi al
 
-        TweetResponse newTweet = tweetService.createTweet(request, currentUserId); // TweetService'i çağırarak tweet oluştur
-        return new ResponseEntity<>(newTweet, HttpStatus.CREATED); // HTTP 201 Created durum kodu ile yanıt dön
+        logger.info("TweetController: createTweet request received. Current User ID: {}", currentUserId);
+
+        TweetResponse newTweet = tweetService.createTweet(request, currentUserId);
+        return new ResponseEntity<>(newTweet, HttpStatus.CREATED);
     }
 
     /**
@@ -62,26 +72,26 @@ public class TweetController {
      * @param id Getirilecek tweet'in UUID ID'si
      * @return Bulunan tweet'in TweetResponse DTO'su ve HTTP 200 OK durumu
      */
-    @GetMapping("/{id}") // GET isteği için "/tweets/{id}" yolunu eşler
-    @PreAuthorize("isAuthenticated()") // Kimlik doğrulama gerektirir
+    @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<TweetResponse> getTweetById(@PathVariable UUID id) {
-        TweetResponse tweet = tweetService.getTweetById(id); // TweetService'i çağırarak tweet'i getir
-        return ResponseEntity.ok(tweet); // HTTP 200 OK durum kodu ile yanıt dön
+        TweetResponse tweet = tweetService.getTweetById(id);
+        return ResponseEntity.ok(tweet);
     }
 
     /**
      * Bir kullanıcının tüm tweetlerini getirir.
-     * Endpoint: GET /tweets/user/{userId} (Proje gereksinimindeki findByUserId)
+     * Endpoint: GET /tweets/user/{userId}
      * Erişim: Kimliği doğrulanmış herkes.
      *
      * @param userId Tweetleri getirilecek kullanıcının UUID ID'si
      * @return Kullanıcının tweetlerinin List<TweetResponse> DTO'su ve HTTP 200 OK durumu
      */
-    @GetMapping("/user/{userId}") // GET isteği için "/tweets/user/{userId}" yolunu eşler
-    @PreAuthorize("isAuthenticated()") // Kimlik doğrulama gerektirir
+    @GetMapping("/user/{userId}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<TweetResponse>> getTweetsByUserId(@PathVariable UUID userId) {
-        List<TweetResponse> tweets = tweetService.getTweetsByUserId(userId); // TweetService'i çağırarak tweetleri getir
-        return ResponseEntity.ok(tweets); // HTTP 200 OK durum kodu ile yanıt dön
+        List<TweetResponse> tweets = tweetService.getTweetsByUserId(userId);
+        return ResponseEntity.ok(tweets);
     }
 
     /**
@@ -93,16 +103,23 @@ public class TweetController {
      * @param request Tweet güncelleme bilgileri içeren TweetUpdateRequest DTO
      * @return Güncellenen tweet'in TweetResponse DTO'su ve HTTP 200 OK durumu
      */
-    @PutMapping("/{id}") // PUT isteği için "/tweets/{id}" yolunu eşler
-    @PreAuthorize("isAuthenticated()") // Kimlik doğrulama gerektirir
+    @PutMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<TweetResponse> updateTweet(@PathVariable UUID id,
                                                      @Valid @RequestBody TweetUpdateRequest request) {
-        // Güvenlik bağlamından mevcut kullanıcının ID'sini alıyoruz.
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        UUID currentUserId = UUID.fromString(authentication.getName());
+        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+        UUID currentUserId = userPrincipal.getId();
 
-        TweetResponse updatedTweet = tweetService.updateTweet(id, request, currentUserId); // TweetService'i çağırarak tweet'i güncelle
-        return ResponseEntity.ok(updatedTweet); // HTTP 200 OK durum kodu ile yanıt dön
+        logger.info("TweetController: updateTweet request received. Tweet ID (from URL): {}, Current User ID (from JWT): {}", id, currentUserId);
+
+        if (!currentUserId.equals(id)) {
+            logger.warn("TweetController: Unauthorized update attempt. Current User ID: {} is not owner of tweet ID: {}", currentUserId, id);
+            throw new UnauthorizedException("You are not authorized to update this tweet.");
+        }
+
+        TweetResponse updatedTweet = tweetService.updateTweet(id, request, currentUserId);
+        return ResponseEntity.ok(updatedTweet);
     }
 
     /**
@@ -113,14 +130,21 @@ public class TweetController {
      * @param id Silinecek tweet'in UUID ID'si
      * @return HTTP 204 No Content durumu (başarılı silme)
      */
-    @DeleteMapping("/{id}") // DELETE isteği için "/tweets/{id}" yolunu eşler
-    @PreAuthorize("isAuthenticated()") // Kimlik doğrulama gerektirir
+    @DeleteMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Void> deleteTweet(@PathVariable UUID id) {
-        // Güvenlik bağlamından mevcut kullanıcının ID'sini alıyoruz.
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        UUID currentUserId = UUID.fromString(authentication.getName());
+        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+        UUID currentUserId = userPrincipal.getId();
 
-        tweetService.deleteTweet(id, currentUserId); // TweetService'i çağırarak tweet'i sil
-        return new ResponseEntity<>(HttpStatus.NO_CONTENT); // HTTP 204 No Content durum kodu ile yanıt dön
+        logger.info("TweetController: deleteTweet request received. Tweet ID (from URL): {}, Current User ID (from JWT): {}", id, currentUserId);
+
+        if (!currentUserId.equals(id)) {
+            logger.warn("TweetController: Unauthorized delete attempt. Current User ID: {} is not owner of tweet ID: {}", currentUserId, id);
+            throw new UnauthorizedException("You are not authorized to delete this tweet.");
+        }
+
+        tweetService.deleteTweet(id, currentUserId);
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 }

@@ -1,59 +1,52 @@
 package com.fsweb.twitterapi.security;
 
-import com.fsweb.twitterapi.entity.User; // Kendi User entity'mizi import ediyoruz
-import com.fsweb.twitterapi.repository.UserRepository; // UserRepository'yi enjekte edeceğiz
-import org.springframework.security.core.GrantedAuthority; // Yetkilendirme (rol) için
-import org.springframework.security.core.authority.SimpleGrantedAuthority; // Yetki objesi oluşturmak için
-import org.springframework.security.core.userdetails.UserDetails; // Spring Security'nin kullanıcı detayları arayüzü
-import org.springframework.security.core.userdetails.UserDetailsService; // Spring Security'nin ana UserDetailsService arayüzü
-import org.springframework.security.core.userdetails.UsernameNotFoundException; // Kullanıcı bulunamadığında fırlatılacak istisna
-import org.springframework.stereotype.Service; // Spring Service bileşeni olduğunu belirtmek için
+import com.fsweb.twitterapi.entity.User;
+import com.fsweb.twitterapi.repository.UserRepository;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.stereotype.Service;
 
-import java.util.ArrayList; // Dinamik liste için
-import java.util.Collection; // Koleksiyon arayüzü için
-import java.util.List; // List için
+import java.util.UUID; // UUID import'u
 
-@Service // Bu anotasyon, Spring'e bu sınıfın bir servis bileşeni olduğunu ve otomatik olarak yönetilmesi gerektiğini belirtir.
+
+@Service
 public class CustomUserDetailsService implements UserDetailsService {
 
-    private final UserRepository userRepository; // UserRepository'yi enjekte ediyoruz (kullanıcı bilgilerini veritabanından çekmek için)
+    private final UserRepository userRepository;
 
-    // Constructor Injection
     public CustomUserDetailsService(UserRepository userRepository) {
         this.userRepository = userRepository;
     }
 
     /**
-     * Spring Security tarafından kimlik doğrulama sürecinde kullanılır.
-     * Veritabanından kullanıcı adı (veya e-posta) ile kullanıcı detaylarını yükler.
+     * Spring Security tarafından kimlik doğrulama sürecinde kullanılır (örneğin AuthController'daki login).
+     * Kullanıcının username/email'i ile UserDetails yükler.
      *
      * @param usernameOrEmail Kullanıcı adı veya e-posta
-     * @return Spring Security'nin UserDetails objesi
+     * @return Kendi UserPrincipal objemiz (UserDetails implementasyonu)
      * @throws UsernameNotFoundException Kullanıcı bulunamazsa fırlatılır
      */
-    @Override // UserDetailsService arayüzünden gelen metodu override ediyoruz
+    @Override
     public UserDetails loadUserByUsername(String usernameOrEmail) throws UsernameNotFoundException {
-        // Veritabanında kullanıcıyı kullanıcı adı veya e-posta ile bulmaya çalış
-        User user = userRepository.findByUsernameOrEmail(usernameOrEmail, usernameOrEmail) // Hem username hem email alanına aynı değeri gönderiyoruz
+        User user = userRepository.findByUsernameOrEmail(usernameOrEmail, usernameOrEmail)
                 .orElseThrow(() ->
                         new UsernameNotFoundException("User not found with username or email: " + usernameOrEmail));
 
-        // Kullanıcının yetkilerini (rollerini) belirle
-        // Şimdilik tüm kullanıcılara varsayılan olarak "ROLE_USER" rolünü atıyoruz.
-        // İleride User entity'sine 'roles' alanı ekleyebiliriz.
-        List<GrantedAuthority> authorities = new ArrayList<>();
-        authorities.add(new SimpleGrantedAuthority("ROLE_USER")); // Varsayılan olarak her kullanıcıya USER rolü veriyoruz
-
-        // Spring Security'nin kendi User objesini döndür
-        // Bu User objesi, Spring Security'nin kimlik doğrulama sürecinde kullanacağı UserDetails implementasyonudur.
-        return new org.springframework.security.core.userdetails.User(
-                user.getUsername(), // Kullanıcı adı
-                user.getPassword(), // Hashlenmiş şifre
-                authorities         // Kullanıcının yetkileri/rolleri
-        );
+        return UserPrincipal.create(user);
     }
 
-    // NOT: İleride kullanıcıların rolleri (örn. ADMIN, USER) User entity'sine eklendiğinde,
-    // bu metot, kullanıcının gerçek rollerini veritabanından çekip GrantedAuthority listesine ekleyecektir.
-    // Örneğin: user.getRoles().stream().map(SimpleGrantedAuthority::new).collect(Collectors.toList());
+    /**
+     * JWT filtre tarafından çağrılacak YENİ metot. Kullanıcının ID'si ile UserDetails yükler.
+     * Bu metot, JWT tokenının subject'inde kullanıcının UUID'si olduğu durumda çağrılır.
+     *
+     * @param userId Kullanıcının UUID'si
+     * @return Kendi UserPrincipal objemiz
+     * @throws UsernameNotFoundException Kullanıcı bulunamazsa fırlatılır (Spring Security hatası)
+     */
+    public UserDetails loadUserById(UUID userId) throws UsernameNotFoundException { // YENİ METOT İMZASI
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with ID: " + userId));
+        return UserPrincipal.create(user);
+    }
 }

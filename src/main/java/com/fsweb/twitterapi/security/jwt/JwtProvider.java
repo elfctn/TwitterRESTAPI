@@ -1,80 +1,74 @@
 package com.fsweb.twitterapi.security.jwt;
 
-import io.jsonwebtoken.*; // JWT kütüphanesinin ana sınıfları
-import io.jsonwebtoken.io.Decoders; // Base64 çözücü (io.jsonwebtoken.io paketinden)
-import org.slf4j.Logger; // Loglama için
-import org.slf4j.LoggerFactory; // Loglama için
-import org.springframework.beans.factory.annotation.Value; // application.properties'ten değer okumak için
-import org.springframework.security.core.Authentication; // Spring Security kimlik doğrulama objesi için
-import org.springframework.security.core.userdetails.UserDetails; // Kullanıcı detayları için
-import org.springframework.stereotype.Component; // Spring bileşeni olduğunu belirtmek için
+import io.jsonwebtoken.*;
+import io.jsonwebtoken.io.Decoders;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
+import com.fsweb.twitterapi.security.UserPrincipal; // UserPrincipal'ı import ediyoruz
 
-import java.util.Date; // Tarih ve saat için
-// import java.nio.charset.StandardCharsets; // JJWT 0.11.x için Decoders.BASE64 yeterli, bu import'a gerek kalmadı.
-// import java.util.Base64; // Base64 encoding için (Jwts.io.Decoders kullanıldığı için artık doğrudan gerek yok)
+import java.util.Date;
+import java.util.UUID; // UUID için import
 
-@Component // Bu anotasyon, Spring'e bu sınıfın bir bileşen olduğunu ve otomatik olarak yönetilmesi gerektiğini belirtir.
+
+import org.springframework.stereotype.Component;
+
+@Component
 public class JwtProvider {
 
-    private static final Logger logger = LoggerFactory.getLogger(JwtProvider.class); // Loglama için logger objesi
+    private static final Logger logger = LoggerFactory.getLogger(JwtProvider.class);
 
-    // application.properties dosyasından JWT secret key'i ve token geçerlilik süresini okuyoruz.
-    // Bu değerler güvende tutulmalı ve üretimde doğrudan koda yazılmamalıdır.
-    // Secret key Base64 kodlanmış olmalıdır.
-    @Value("${app.jwtSecret}") // application.properties'ten jwtSecret değerini oku
+    @Value("${app.jwtSecret}")
     private String jwtSecret;
 
-    @Value("${app.jwtExpirationMs}") // application.properties'ten jwtExpirationMs değerini oku
+    @Value("${app.jwtExpirationMs}")
     private int jwtExpirationMs;
 
-    // JWT secret key'inden byte dizisi olarak anahtar döndürür.
-    // JJWT 0.11.x versiyonları genellikle setSigningKey metodu için byte[] bekler.
     private byte[] getSigningKeyBytes() {
-        // application.properties'den gelen secret key'i Base64'ten çözerek byte dizisine çeviririz.
-        // io.jsonwebtoken.io.Decoders sınıfı Base64 çözme işlemini yapar.
         return Decoders.BASE64.decode(jwtSecret);
     }
 
     /**
      * Kimlik doğrulama objesinden (Authentication) JWT token oluşturur.
+     * JWT Subject olarak kullanıcının UUID'sini (String olarak) içerir.
      *
      * @param authentication Spring Security'nin kimlik doğrulama objesi
      * @return Oluşturulan JWT token (String)
      */
     public String generateJwtToken(Authentication authentication) {
-        // Kimlik doğrulaması yapılmış kullanıcının detaylarını al
-        UserDetails userPrincipal = (UserDetails) authentication.getPrincipal();
+        // Principal objesini UserPrincipal olarak alıyoruz, çünkü ID'ye ihtiyacımız var.
+        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
 
-        // Token'ın oluşturulma zamanını ve geçerlilik bitiş zamanını ayarla
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpirationMs);
 
-        // JWT token'ını oluştur ve imzala
         return Jwts.builder()
-                .setSubject((userPrincipal.getUsername())) // Token'ın konusu (kullanıcı adı)
-                .setIssuedAt(now) // Token'ın oluşturulma zamanı
-                .setExpiration(expiryDate) // Token'ın geçerlilik bitiş zamanı
-                .signWith(SignatureAlgorithm.HS256, getSigningKeyBytes()) // JJWT 0.11.x için bu signature metodu kullanılır (algoritma sonra, anahtar önce).
-                .compact(); // JWT'yi sıkıştırılmış, URL güvenli bir stringe dönüştür
+                .setSubject(userPrincipal.getId().toString()) // KESİNLİKLE DÜZELTME: Subject olarak kullanıcının UUID'sini (String olarak) kullanıyoruz
+                .setIssuedAt(now)
+                .setExpiration(expiryDate)
+                .signWith(SignatureAlgorithm.HS256, getSigningKeyBytes())
+                .compact();
     }
 
     /**
-     * JWT token'ından kullanıcı adını çıkarır.
+     * JWT token'ından kullanıcı ID'sini (UUID String olarak) çıkarır.
      *
      * @param token JWT token (String)
-     * @return Kullanıcı adı (String)
+     * @return Kullanıcı ID'si (String olarak)
      */
-    public String getUserNameFromJwtToken(String token) {
+    public String getUserIdFromJwtToken(String token) { // KESİNLİKLE DÜZELTME: Metot adı getUserIdFromJwtToken oldu.
         try {
-            // JJWT 0.11.x versiyonlarında token ayrıştırmak için Jwts.parser() doğrudan kullanılır.
-            // setSigningKey metodu byte[] tipi anahtar bekler.
-            return Jwts.parser()
+            String userId = Jwts.parser()
                     .setSigningKey(getSigningKeyBytes())
-                    .parseClaimsJws(token) // JWS (JSON Web Signature) token'ını ayrıştır
-                    .getBody().getSubject(); // Claims içindeki 'subject' (kullanıcı adı) bilgisini al
+                    .parseClaimsJws(token)
+                    .getBody().getSubject(); // Subject'ten artık UUID String'i çekiyoruz
+            logger.info("JwtProvider: Retrieved User ID from JWT: {}", userId); // Log mesajını güncelledik
+            return userId;
         } catch (Exception e) {
-            logger.error("Failed to get username from JWT token: {}", e.getMessage());
-            return null; // Veya daha uygun bir şekilde hata yönetimi
+            logger.error("JwtProvider: Failed to get user ID from JWT token: {}", e.getMessage());
+            return null;
         }
     }
 
@@ -86,22 +80,21 @@ public class JwtProvider {
      */
     public boolean validateJwtToken(String authToken) {
         try {
-            // Token'ı ayrıştırmayı ve doğrulamayı dene. JJWT 0.11.x API'si kullanılıyor.
             Jwts.parser()
-                    .setSigningKey(getSigningKeyBytes()) // setSigningKey metodu byte[] anahtar bekler.
+                    .setSigningKey(getSigningKeyBytes())
                     .parseClaimsJws(authToken);
-            return true; // Ayrıştırma başarılıysa token geçerlidir
+            return true;
         } catch (MalformedJwtException e) {
-            logger.error("Invalid JWT token: {}", e.getMessage()); // JWT token formatı hatalıysa
+            logger.error("JwtProvider: Invalid JWT token: {}", e.getMessage());
         } catch (ExpiredJwtException e) {
-            logger.error("JWT token is expired: {}", e.getMessage()); // JWT token süresi dolduysa
+            logger.error("JwtProvider: JWT token is expired: {}", e.getMessage());
         } catch (UnsupportedJwtException e) {
-            logger.error("JWT token is unsupported: {}", e.getMessage()); // Desteklenmeyen JWT token formatıysa
+            logger.error("JwtProvider: JWT token is unsupported: {}", e.getMessage());
         } catch (IllegalArgumentException e) {
-            logger.error("JWT claims string is empty: {}", e.getMessage()); // JWT iddiaları boşsa
-        } catch (SignatureException e) { // io.jsonwebtoken.SignatureException yakalanmalı
-            logger.error("Invalid JWT signature: {}", e.getMessage()); // JWT imzası geçersizse (secret key uyuşmuyorsa)
+            logger.error("JwtProvider: JWT claims string is empty: {}", e.getMessage());
+        } catch (SignatureException e) {
+            logger.error("JwtProvider: Invalid JWT signature: {}", e.getMessage());
         }
-        return false; // Herhangi bir hata durumunda token geçersizdir
+        return false;
     }
 }
